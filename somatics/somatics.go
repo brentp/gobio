@@ -58,9 +58,7 @@ func getFreq(refCount int, altCounts []int) float64 {
 	return float64(ac) / float64(refCount+ac)
 }
 
-var THRESH_RATIO = 2.7
-
-func somaticFreqs(normal *vcfgo.SampleGenotype, tumor *vcfgo.SampleGenotype) bool {
+func somaticFreqs(normal *vcfgo.SampleGenotype, tumor *vcfgo.SampleGenotype, freqRatio float64) bool {
 	var nFreq, tFreq float64
 	nrd, err := normal.RefDepth()
 	if err != nil {
@@ -84,12 +82,11 @@ func somaticFreqs(normal *vcfgo.SampleGenotype, tumor *vcfgo.SampleGenotype) boo
 			tFreq = getFreq(trd, tads)
 		}
 	}
-	return nFreq <= 0.001 || nFreq <= tFreq/THRESH_RATIO
+	return nFreq <= 0.001 || nFreq <= tFreq/freqRatio
 
 }
 
-func Somatics(v *vcfgo.Variant, normalIdx int) []string {
-	thresh := 3.5
+func Somatics(v *vcfgo.Variant, normalIdx int, thresh float64, freqRatio float64) []string {
 
 	normal := v.Samples[normalIdx]
 	somatics := make([]string, 0)
@@ -97,7 +94,7 @@ func Somatics(v *vcfgo.Variant, normalIdx int) []string {
 		if i == normalIdx {
 			continue
 		}
-		if !somaticFreqs(normal, tumor) {
+		if !somaticFreqs(normal, tumor, freqRatio) {
 			continue
 		}
 		if somaticLOD(normal.GL, tumor.GL, thresh) {
@@ -115,13 +112,17 @@ func check(e error) {
 
 func main() {
 	index := flag.Int("index", 0, "0-based index of the normal sample")
+	threshold := flag.Float64("threshold", 3.5, "threshold for difference in GLs to call a somatic variant")
+	freqRatio := flag.Float64("freq-ratio", 2.7, "frequency in the tumor must be at least this many times the frequency in the normal")
 	onlySomatic := flag.Bool("only-somatic", false, "print only the PASSing somatic variants (default is to set a flag and print all variants")
 	flag.Parse()
 	vcfs := flag.Args()
 	if len(vcfs) != 1 {
+		fmt.Printf("-----------------------------------------------------------------------------------\n")
 		fmt.Printf("---------------- call somatic variants present in any tumor sample ----------------\n")
 		fmt.Printf("----- uses the method from bcbio and speedseq but for multiple tumor samples ------\n")
-		fmt.Printf("%s -index 0 normal-and-tumors.vcf.gz\n", os.Args[0])
+		fmt.Printf("-----------------------------------------------------------------------------------\n")
+		fmt.Printf("%s normal-and-tumors.vcf.gz\n", os.Args[0])
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -149,7 +150,7 @@ func main() {
 		if *onlySomatic && !(v.Filter == "." || v.Filter == "PASS") {
 			continue
 		}
-		somatics := Somatics(v, *index)
+		somatics := Somatics(v, *index, *threshold, *freqRatio)
 		if len(somatics) > 0 {
 			v.Info.Add("SOMATIC", strings.Join(somatics, "|"))
 		} else {
