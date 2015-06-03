@@ -45,8 +45,8 @@ func getNormalLOD(gls []float64, thresh float64) float64 {
 }
 
 func somaticLOD(normalGLs []float64, tumorGLs []float64, thresh float64) bool {
-	tumorLOD := getTumorLOD(tumorGLs)
 	normalLOD := getNormalLOD(normalGLs, thresh)
+	tumorLOD := getTumorLOD(tumorGLs)
 	return tumorLOD >= thresh && normalLOD >= thresh
 }
 
@@ -86,13 +86,17 @@ func somaticFreqs(normal *vcfgo.SampleGenotype, tumor *vcfgo.SampleGenotype, fre
 
 }
 
-func Somatics(v *vcfgo.Variant, normalIdx int, thresh float64, freqRatio float64) []string {
+func Somatics(v *vcfgo.Variant, normalIdx int, thresh float64, freqRatio float64, skipMissing bool) []string {
 
 	normal := v.Samples[normalIdx]
 	somatics := make([]string, 0)
 	for i, tumor := range v.Samples {
 		if i == normalIdx {
 			continue
+		}
+		// if we don't have GLs for normal, dont call a somatic.
+		if skipMissing && len(normal.GL) == 0 {
+			return somatics
 		}
 		if !somaticFreqs(normal, tumor, freqRatio) {
 			continue
@@ -115,6 +119,7 @@ func main() {
 	threshold := flag.Float64("threshold", 3.5, "threshold for difference in GLs to call a somatic variant")
 	freqRatio := flag.Float64("freq-ratio", 2.7, "frequency in the tumor must be at least this many times the frequency in the normal")
 	onlySomatic := flag.Bool("only-somatic", false, "print only the PASSing somatic variants (default is to set a flag and print all variants")
+	skipMissing := flag.Bool("skip-missing-normals", false, "skip variants with missing normal. default is not to flag these as somatic.")
 	flag.Parse()
 	vcfs := flag.Args()
 	if len(vcfs) != 1 {
@@ -150,7 +155,7 @@ func main() {
 		if *onlySomatic && !(v.Filter == "." || v.Filter == "PASS") {
 			continue
 		}
-		somatics := Somatics(v, *index, *threshold, *freqRatio)
+		somatics := Somatics(v, *index, *threshold, *freqRatio, *skipMissing)
 		if len(somatics) > 0 {
 			v.Info.Add("SOMATIC", strings.Join(somatics, "|"))
 		} else {
