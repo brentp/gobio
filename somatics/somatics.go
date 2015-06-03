@@ -115,6 +115,7 @@ func check(e error) {
 
 func main() {
 	index := flag.Int("index", 0, "0-based index of the normal sample")
+	onlySomatic := flag.Bool("only-somatic", false, "print only the PASSing somatic variants (default is to set a flag and print all variants")
 	flag.Parse()
 	vcfs := flag.Args()
 	if len(vcfs) != 1 {
@@ -145,11 +146,17 @@ func main() {
 	log.Printf("using %s as the normal sample\n", hdr.SampleNames[*index])
 
 	for v := rdr.Read(); v != nil; v = rdr.Read() {
+		if *onlySomatic && !(v.Filter == "." || v.Filter == "PASS") {
+			continue
+		}
 
 		somatics := Somatics(v, *index)
 		if len(somatics) > 0 {
 			v.Info.Add("SOMATIC", strings.Join(somatics, "|"))
 		} else {
+			if *onlySomatic {
+				continue
+			}
 			if v.Filter == "." || v.Filter == "PASS" {
 				v.Filter = ""
 			}
