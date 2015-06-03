@@ -149,7 +149,6 @@ func main() {
 		if *onlySomatic && !(v.Filter == "." || v.Filter == "PASS") {
 			continue
 		}
-
 		somatics := Somatics(v, *index)
 		if len(somatics) > 0 {
 			v.Info.Add("SOMATIC", strings.Join(somatics, "|"))
@@ -167,5 +166,6 @@ func main() {
 		}
 		wtr.WriteVariant(v)
 	}
+	log.Println("VCF warnings:", rdr.Error())
 	fhw.Close()
 }
