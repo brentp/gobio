@@ -1,7 +1,8 @@
-// call somatic variants among multiple normal samples. This uses the genotype likelihood
-// approach from bcbio and speedseq but allows for multiple tumor samples. Anything that
-// meets the criteria will have a "PASS" or "." FILTER and a list of tumor samples with the
-// somatic variant in INFO["SOMATIC"]
+// call somatic variants with multiple tumor samples associated with 1 normal. This uses
+// the genotype likelihood approach from bcbio and speedseq but allows for multiple tumor
+// samples. Anything that meets the criteria will have a "PASS" or "." FILTER and a list
+// of tumor samples with the somatic variant in INFO["SOMATIC"]
+// Copied from bcbio and speedseq.
 package main
 
 import (
