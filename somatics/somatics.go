@@ -118,9 +118,9 @@ func main() {
 	flag.Parse()
 	vcfs := flag.Args()
 	if len(vcfs) != 1 {
-		fmt.Printf("----------------- call somatic variants present in any tumor sample --------------\n")
-		fmt.Printf("----- uses the method from bcbio and speedseq but for multiple tumor samples ------")
-		fmt.Printf("%s -index 0 normal-and-tumors.vcf.gz", os.Args[0])
+		fmt.Printf("---------------- call somatic variants present in any tumor sample ----------------\n")
+		fmt.Printf("----- uses the method from bcbio and speedseq but for multiple tumor samples ------\n")
+		fmt.Printf("%s -index 0 normal-and-tumors.vcf.gz\n", os.Args[0])
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
