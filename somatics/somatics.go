@@ -142,6 +142,8 @@ func main() {
 	wtr, err := vcfgo.NewWriter(fhw, hdr)
 	check(err)
 
+	log.Printf("using %s as the normal sample\n", hdr.SampleNames[*index])
+
 	for v := rdr.Read(); v != nil; v = rdr.Read() {
 
 		somatics := Somatics(v, *index)
@@ -158,4 +160,5 @@ func main() {
 		}
 		wtr.WriteVariant(v)
 	}
+	fhw.Close()
 }
