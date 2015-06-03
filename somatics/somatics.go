@@ -151,7 +151,9 @@ func main() {
 
 	log.Printf("using %s as the normal sample\n", hdr.SampleNames[*index])
 
+	j := 0
 	for v := rdr.Read(); v != nil; v = rdr.Read() {
+		j++
 		if *onlySomatic && !(v.Filter == "." || v.Filter == "PASS") {
 			continue
 		}
@@ -173,5 +175,6 @@ func main() {
 		wtr.WriteVariant(v)
 	}
 	log.Println("VCF warnings:", rdr.Error())
+	log.Printf("evaluated %d variants\n", j)
 	fhw.Close()
 }
