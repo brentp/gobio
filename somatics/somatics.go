@@ -128,7 +128,7 @@ func main() {
 	threshold := flag.Float64("threshold", 3.5, "threshold for difference in GLs to call a somatic variant")
 	freqRatio := flag.Float64("freq-ratio", 2.7, "frequency in the tumor must be at least this many times the frequency in the normal")
 	onlySomatic := flag.Bool("only-somatic", false, "print only the PASSing somatic variants (default is to set a flag and print all variants")
-	skipMissing := flag.Bool("skip-missing-normals", false, "skip variants with missing normal. default is not to flag these as somatic.")
+	skipMissing := flag.Bool("skip-missing-normals", false, "skip variants with missing normal. default is flag these as somatic.")
 	flag.Parse()
 	vcfs := flag.Args()
 	if len(vcfs) != 1 {
