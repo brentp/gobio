@@ -114,8 +114,17 @@ func check(e error) {
 	}
 }
 
+func sampleIndex(samples []string, sample string) int {
+	for p, s := range samples {
+		if s == sample {
+			return p
+		}
+	}
+	return -1
+}
+
 func main() {
-	index := flag.Int("index", 0, "0-based index of the normal sample")
+	normalStr := flag.String("normal", "", "sample name of the normal sample. Default is the first sample")
 	threshold := flag.Float64("threshold", 3.5, "threshold for difference in GLs to call a somatic variant")
 	freqRatio := flag.Float64("freq-ratio", 2.7, "frequency in the tumor must be at least this many times the frequency in the normal")
 	onlySomatic := flag.Bool("only-somatic", false, "print only the PASSing somatic variants (default is to set a flag and print all variants")
@@ -138,6 +147,14 @@ func main() {
 	rdr, err := vcfgo.NewReader(fhr, false)
 	check(err)
 
+	normal := 0
+	if *normalStr != "" {
+		normal = sampleIndex(rdr.Header.SampleNames, *normalStr)
+		if normal == -1 {
+			log.Fatalf("sample %s: not found in vcf (%v)\n", *normalStr, rdr.Header.SampleNames)
+		}
+	}
+
 	fhw, err := xopen.Wopen("-")
 	check(err)
 
@@ -149,7 +166,7 @@ func main() {
 	wtr, err := vcfgo.NewWriter(fhw, hdr)
 	check(err)
 
-	log.Printf("using %s as the normal sample\n", hdr.SampleNames[*index])
+	log.Printf("using %s as the normal sample\n", hdr.SampleNames[normal])
 
 	j := 0
 	for v := rdr.Read(); v != nil; v = rdr.Read() {
@@ -157,7 +174,7 @@ func main() {
 		if *onlySomatic && !(v.Filter == "." || v.Filter == "PASS") {
 			continue
 		}
-		somatics := Somatics(v, *index, *threshold, *freqRatio, *skipMissing)
+		somatics := Somatics(v, normal, *threshold, *freqRatio, *skipMissing)
 		if len(somatics) > 0 {
 			v.Info.Add("SOMATIC", strings.Join(somatics, "|"))
 		} else {
