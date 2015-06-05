@@ -90,13 +90,13 @@ func Somatics(v *vcfgo.Variant, normalIdx int, thresh float64, freqRatio float64
 
 	normal := v.Samples[normalIdx]
 	somatics := make([]string, 0)
+	// if we don't have GLs for normal, dont call a somatic.
+	if skipMissing && len(normal.GL) == 0 {
+		return somatics
+	}
 	for i, tumor := range v.Samples {
 		if i == normalIdx {
 			continue
-		}
-		// if we don't have GLs for normal, dont call a somatic.
-		if skipMissing && len(normal.GL) == 0 {
-			return somatics
 		}
 		if !somaticFreqs(normal, tumor, freqRatio) {
 			continue
@@ -140,6 +140,15 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
+
+	/*
+		f, err := os.Create("cpu.pprof")
+		if err != nil {
+			panic(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	*/
 
 	fhr, err := xopen.Ropen(vcfs[0])
 	check(err)
