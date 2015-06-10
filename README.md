@@ -25,7 +25,7 @@ when using 20 CPUs.
 Usage:
 
 ```Shell
-	chunkbam -chunks 2000 some.bam > even-regions.bed
+	chunkbam -min-gap 10 -chunks 2000 some.bam > even-regions.bed
 ```
 
 Then even-regions.bed will look like:
@@ -48,3 +48,7 @@ reads in regions at the ends of chromsomes.
 
 Also note that order is preserved only within chromosomes, but not across chromosomes due
 to internal parallelization.
+
+In many cases, we want to split when there are gaps in coverage. the `-min-gap` parameter allows this.
+In the example above, once the chunksize is reached, a gap of 10 bases without coverage is also required
+in order to make a new split.

@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/biogo/hts/sam"
 )
 
-func chunkify(path string, nChunks int) chan string {
+func chunkify(path string, nChunks int, minGap int) chan string {
 	f, err := os.Open(path)
 	if err != nil {
 		log.Fatal(err)
@@ -49,13 +50,15 @@ func chunkify(path string, nChunks int) chan string {
 	readsPerChunk := int(float64(totalMapped) / float64(nChunks))
 
 	chunks := make(map[string]chan string, 8)
+	// give each chrom its own channel on which to send back dat. Probably a nicer way to do this,
+	// but this works...
 	for _, ref := range refs {
 		_, ok := bai.ReferenceStats(ref.ID())
 		if !ok {
 			continue
 		}
 		chunks[ref.Name()] = make(chan string, 32)
-		go _chunkify(path, readsPerChunk, ref, bai, chunks[ref.Name()])
+		go _chunkify(path, readsPerChunk, minGap, ref, bai, chunks[ref.Name()])
 	}
 
 	merged := make(chan string)
@@ -87,7 +90,7 @@ func chunkify(path string, nChunks int) chan string {
 	}()
 	return merged
 }
-func _chunkify(path string, readsPerChunk int, ref *sam.Reference, bai *bam.Index, ch chan string) {
+func _chunkify(path string, readsPerChunk int, minGap int, ref *sam.Reference, bai *bam.Index, ch chan string) {
 	f, err := os.Open(path)
 	if err != nil {
 		close(ch)
@@ -126,6 +129,7 @@ func _chunkify(path string, readsPerChunk int, ref *sam.Reference, bai *bam.Inde
 	cnt := 0
 	chunk := 0
 	lastStart := 0
+	lastEnd := int(math.MaxInt64)
 	var aln *sam.Record
 
 	for it.Next() {
@@ -134,11 +138,17 @@ func _chunkify(path string, readsPerChunk int, ref *sam.Reference, bai *bam.Inde
 			continue
 		}
 		cnt++
-		if cnt == readsPerChunk {
+		// expensive to get End so only do it when needed
+
+		if cnt >= readsPerChunk && (minGap == 0 || (minGap > 0 && aln.Start()-lastEnd > minGap)) {
 			ch <- fmt.Sprintf("%s\t%d\t%d\t\t%d", ref.Name(), lastStart, aln.Start(), cnt)
 			cnt = 0
 			lastStart = aln.Start()
 			chunk++
+		}
+		// only calculate end when needed since it's fairly expensive.
+		if cnt >= readsPerChunk-1 && minGap > 0 {
+			lastEnd = aln.End()
 		}
 	}
 	// leftover reads from reads modulo readsPerChunk
@@ -154,9 +164,10 @@ func _chunkify(path string, readsPerChunk int, ref *sam.Reference, bai *bam.Inde
 
 func main() {
 	chunks := flag.Int("chunks", 1000, "approximate number of chunks to split bam file")
+	minGap := flag.Int("min-gap", 0, "also require this many bases between adjacent reads when ending a chunk (default is 0).")
 	flag.Parse()
 	bam := flag.Arg(0)
-	for chunk := range chunkify(bam, *chunks) {
+	for chunk := range chunkify(bam, *chunks, *minGap) {
 		fmt.Println(chunk)
 	}
 }
