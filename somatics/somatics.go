@@ -108,6 +108,31 @@ func Somatics(v *vcfgo.Variant, normalIdx int, thresh float64, freqRatio float64
 	return somatics
 }
 
+func Contains(li []string, item string) bool {
+	for _, i := range li {
+		if item == i {
+			return true
+		}
+	}
+	return false
+}
+
+func PairWise(v *vcfgo.Variant, thresh float64, freqRatio float64, skipMissing bool) []string {
+	pairs := make([]string, 0)
+	for i := range v.Samples {
+		samp := v.Header.SampleNames[i]
+		soms := Somatics(v, i, thresh, freqRatio, skipMissing)
+		for _, som := range soms {
+			pair := samp + ".." + som
+			// actually, shouldn't need this check because the first has to be reference and the other not.
+			if !(Contains(pairs, som+".."+samp) || Contains(pairs, pair)) {
+				pairs = append(pairs, pair)
+			}
+		}
+	}
+	return pairs
+}
+
 func check(e error) {
 	if e != nil {
 		log.Fatal(e)
@@ -129,6 +154,7 @@ func main() {
 	freqRatio := flag.Float64("freq-ratio", 2.7, "frequency in the tumor must be at least this many times the frequency in the normal")
 	onlySomatic := flag.Bool("only-somatic", false, "print only the PASSing somatic variants (default is to set a flag and print all variants")
 	skipMissing := flag.Bool("skip-missing-normals", false, "skip variants with missing normal. default is flag these as somatic.")
+	pairwise := flag.Bool("pairwise", false, "compare each sample to all others")
 	flag.Parse()
 	vcfs := flag.Args()
 	if len(vcfs) != 1 {
@@ -170,6 +196,9 @@ func main() {
 	hdr := rdr.Header
 	hdr.Filters["NOT_SOMATIC"] = "not somatic between normal and any tumor"
 
+	if *pairwise {
+		hdr.Infos["SOMATICPAIRS"] = &vcfgo.Info{Id: "SOMATICPAIRS", Number: "1", Type: "String", Description: "pairwise indications of somatic events"}
+	}
 	hdr.Infos["SOMATIC"] = &vcfgo.Info{Id: "SOMATIC", Number: "1", Type: "String", Description: "Tumor samples with somatic event"}
 
 	wtr, err := vcfgo.NewWriter(fhw, hdr)
@@ -198,6 +227,14 @@ func main() {
 			}
 			v.Filter += "NOT_SOMATIC"
 		}
+		if *pairwise {
+			pairs := PairWise(v, *threshold, *freqRatio, *skipMissing)
+			if len(pairs) > 0 {
+				v.Info.Add("SOMATICPAIRS", strings.Join(pairs, "|"))
+			}
+
+		}
+
 		wtr.WriteVariant(v)
 	}
 	log.Println("VCF warnings:", rdr.Error())
