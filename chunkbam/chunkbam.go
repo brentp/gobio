@@ -121,7 +121,12 @@ func _chunkify(path string, readsPerChunk int, minGap int, ref *sam.Reference, b
 
 	log.Printf("chunking: %s. %d reads into %d / chunk \n", ref, nReads, readsPerChunk)
 
-	it, err := bam.NewIterator(b, bai.Chunks(ref, 0, ref.Len()))
+	chunks, err := bai.Chunks(ref, 0, ref.Len())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	it, err := bam.NewIterator(b, chunks)
 	if err != nil {
 		log.Fatal(err)
 	}
