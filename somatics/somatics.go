@@ -214,7 +214,7 @@ func main() {
 		}
 		somatics := Somatics(v, normal, *threshold, *freqRatio, *skipMissing)
 		if len(somatics) > 0 {
-			v.Info.Add("SOMATIC", strings.Join(somatics, "|"))
+			v.Info().Set("SOMATIC", strings.Join(somatics, "|"))
 		} else {
 			if *onlySomatic {
 				continue
@@ -230,7 +230,7 @@ func main() {
 		if *pairwise {
 			pairs := PairWise(v, *threshold, *freqRatio, *skipMissing)
 			if len(pairs) > 0 {
-				v.Info.Add("SOMATICPAIRS", strings.Join(pairs, "|"))
+				v.Info().Set("SOMATICPAIRS", strings.Join(pairs, "|"))
 			}
 
 		}
