@@ -27,18 +27,32 @@ func main() {
 	bam := flag.Arg(1)
 	n := runtime.GOMAXPROCS(-1)
 
-	work := make(chan chan io.ReadCloser, n-1)
-	go fillWork(work, bed, 50, bam, *f)
+	work := make(chan chan RdrBuf, n-1)
+	go fillWork(work, bed, 100, bam, *f)
+
+	wtr := exec.Command("sambamba", "view", "-f", "bam", "--sam-input", "/dev/stdin")
+	wbam, err := wtr.StdinPipe()
+	check(err)
+	wtr.Stdout = os.Stdout
+	wtr.Stderr = os.Stderr
+	wtr.Start()
 
 	for ch := range work {
 		rdr := <-ch
-		io.Copy(os.Stdout, rdr)
-		rdr.Close()
+		wbam.Write(rdr.buf)
+		io.Copy(wbam, rdr.rdr)
+		rdr.rdr.Close()
 	}
+	wbam.Close()
 
 }
 
-func fillWork(work chan chan io.ReadCloser, bed string, nRegions int, bam string, flag int) {
+type RdrBuf struct {
+	rdr io.ReadCloser
+	buf []byte
+}
+
+func fillWork(work chan chan RdrBuf, bed string, nRegions int, bam string, flag int) {
 
 	j := 0
 	for regs := range Regions(bed, nRegions, 40) {
@@ -53,11 +67,11 @@ func fillWork(work chan chan io.ReadCloser, bed string, nRegions int, bam string
 		for _, r := range regs {
 			args = append(args, r.String())
 		}
-		ch := make(chan io.ReadCloser)
+		ch := make(chan RdrBuf)
 		work <- ch
 		go func() {
-			rdr := GetUrl(bam, args)
-			ch <- rdr
+			rdr, buf := GetUrl(bam, args)
+			ch <- RdrBuf{rdr, buf}
 			close(ch)
 		}()
 
@@ -102,8 +116,12 @@ func Regions(bed string, nRegions int, expand int) chan []Region {
 				continue
 			}
 			s, err := strconv.Atoi(toks[1])
+			if s > expand {
+				s -= expand
+			}
 			check(err)
 			e, err := strconv.Atoi(toks[2])
+			e += expand
 			check(err)
 			if s == e {
 				continue
@@ -125,12 +143,17 @@ func Regions(bed string, nRegions int, expand int) chan []Region {
 	return ch
 }
 
-func GetUrl(url string, args []string) io.ReadCloser {
+func GetUrl(url string, args []string) (io.ReadCloser, []byte) {
 	args = append(args, url)
 	cmd := exec.Command("samtools", args...)
 	rpipe, err := cmd.StdoutPipe()
 	check(err)
 	cmd.Start()
+	buf := make([]byte, 32*65536)
+	n, err := rpipe.Read(buf)
+	if err != io.EOF {
+		check(err)
+	}
 
-	return rpipe
+	return rpipe, buf[:n]
 }
