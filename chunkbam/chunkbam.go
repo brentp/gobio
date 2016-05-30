@@ -142,8 +142,10 @@ func _chunkify(path string, readsPerChunk int, minGap int, ref *sam.Reference, b
 		if aln.Flags&sam.Unmapped != 0 {
 			continue
 		}
+		if aln.Flags&sam.Duplicate != 0 {
+			continue
+		}
 		cnt++
-		// expensive to get End so only do it when needed
 
 		if cnt >= readsPerChunk && (minGap == 0 || (minGap > 0 && aln.Start()-lastEnd > minGap)) {
 			ch <- fmt.Sprintf("%s\t%d\t%d\t\t%d", ref.Name(), lastStart, aln.Start(), cnt)
