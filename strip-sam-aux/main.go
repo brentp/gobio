@@ -68,7 +68,7 @@ func main() {
 	bam := flag.String("bam", "", "path to bam to strip tags")
 	flag.Parse()
 	tags := flag.Args()
-	if len(tags) == 0 || *bam == "" {
+	if len(tags) == 0 && *bam == "" {
 		fmt.Printf("send in names of tags to strip and path to bam file\n")
 		fmt.Printf("e.g. strip-tags -bam some.bam XS AS MC")
 		flag.PrintDefaults()
